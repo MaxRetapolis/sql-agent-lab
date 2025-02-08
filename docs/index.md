@@ -6,7 +6,8 @@
 
 The data used is from kaggle. You can find the same dataset [here](https://www.kaggle.com/datasets/fayez1/inventory-management)
 
-## Models
+## Ollama LLMs
+* [qwen2.5-coder](https://ollama.com/library/qwen2.5-coder)
 
 
 ## Technologies
