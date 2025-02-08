@@ -17,6 +17,14 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dependencies = [
+    "ipykernel>=6.29.5",
+    "langchain-community>=0.3.17",
+    "langchain-ollama>=0.2.3",
+    "langgraph>=0.2.70",
+    "openpyxl>=3.1.5",
+    "pandas>=2.2.3",
+]
 
 [project.urls]
 Homepage = "https://pilarcode.github.io/sql-agent-lab/"
