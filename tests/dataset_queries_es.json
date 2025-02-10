@@ -1,0 +1,12 @@
+{
+    "Obtener todos los registros de la tabla Stock": "SELECT * FROM Stock;",
+    "Listar los IDs de los productos en stock con su cantidad actual": "SELECT id, current_stock_quantity FROM Stock;",
+    "Obtener el precio unitario promedio de todos los productos en stock": "SELECT AVG(unit_price) AS avg_unit_price FROM Stock;",
+    "Encontrar los productos con más de 10,000 unidades en stock": "SELECT id, current_stock_quantity FROM Stock WHERE current_stock_quantity > 10000;",
+    "Obtener la cantidad total de productos en stock": "SELECT SUM(current_stock_quantity) AS total_stock FROM Stock;",
+    "Listar las órdenes realizadas en el año 2023":  "SELECT * FROM Orders WHERE strftime('%Y', date) = '2023';",
+    "Obtener el producto con el mayor tiempo máximo de entrega":  "SELECT id, maximum_lead_time_days FROM Stock ORDER BY maximum_lead_time_days DESC LIMIT 1;",
+    "Listar los productos cuyo precio unitario sea superior al promedio": "SELECT id, unit_price FROM Stock WHERE unit_price > (SELECT AVG(unit_price) FROM Stock);",
+    "Obtener el número total de órdenes por producto": "SELECT id, COUNT(*) AS total_orders FROM Orders GROUP BY id;",
+    "Listar los productos en stock que han sido ordenados al menos una vez": "SELECT DISTINCT s.id, s.current_stock_quantity FROM Stock s JOIN Orders o ON s.id = o.id;"
+}
