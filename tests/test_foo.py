@@ -1,4 +1,4 @@
-from sql_agent_lab.foo import foo
+from sql_agent_lab import foo
 
 
 def test_foo():
