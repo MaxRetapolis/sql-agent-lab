@@ -1,0 +1,14 @@
+question,expected_sql,predicted_sql,latency
+¿Cuáles son los detalles de todos los clientes?,SELECT * FROM Customers;,"SELECT P.ProductID, P.Name FROM Products P JOIN OrderDetails OD ON P.ProductID = OD.ProductID WHERE OD.OrderID = 3",11.027225017547607
+¿Cuáles son los productos disponibles en la categoría 'Women'?,SELECT * FROM Products WHERE Category = 'Women';,"SELECT p.Name, od.Quantity 
+FROM OrderDetails od 
+JOIN Products p ON od.ProductID = p.ProductID 
+WHERE od.OrderID = 3;",12.204066753387451
+¿Cuál es el precio total de todos los pedidos realizados por un cliente específico con ID 5?,SELECT SUM(TotalAmount) FROM Orders WHERE CustomerID = 5;,"SELECT P.ProductID, P.Name, OD.Quantity FROM OrderDetails OD JOIN Products P ON OD.ProductID = P.ProductID WHERE OD.OrderID = 3;",12.165747165679932
+¿Cuántos productos están en stock con una cantidad mayor a 20 unidades?,SELECT * FROM Products WHERE StockQuantity > 20;,"SELECT P.ProductID, P.Name, OD.Quantity FROM Products AS P JOIN OrderDetails AS OD ON P.ProductID = OD.ProductID WHERE OD.OrderID = 3;",13.884604692459106
+¿Qué productos han sido comprados en el pedido con ID 3?,"SELECT p.Name, od.Quantity, od.Subtotal FROM OrderDetails od INNER JOIN Products p ON od.ProductID = p.ProductID WHERE od.OrderID = 3;","SELECT P.ProductID, P.Name, OD.Quantity FROM OrderDetails OD JOIN Products P ON OD.ProductID = P.ProductID WHERE OD.OrderID = 3;",14.324975490570068
+¿Cuál es el nombre y apellido del cliente que tiene el correo electrónico 'juan.perez@email.com'?,"SELECT FirstName, LastName FROM Customers WHERE Email = 'juan.perez@email.com';","SELECT P.ProductID, P.Name FROM Products P JOIN OrderDetails OD ON P.ProductID = OD.ProductID WHERE OD.OrderID = 3;",12.78238844871521
+¿Qué pedidos fueron realizados el 14 de febrero de 2025?,SELECT * FROM Orders WHERE OrderDate = '2025-02-14';,"SELECT P.ProductID, P.Name FROM Products P JOIN OrderDetails OD ON P.ProductID = OD.ProductID WHERE OD.OrderID = 3;",12.51287055015564
+¿Cuántos productos en total fueron comprados en el pedido con ID 1?,SELECT SUM(Quantity) FROM OrderDetails WHERE OrderID = 1;,"SELECT P.ProductID, P.Name FROM Products P JOIN OrderDetails OD ON P.ProductID = OD.ProductID WHERE OD.OrderID = 3",11.449391603469849
+¿Qué productos tienen un precio superior a 120?,SELECT * FROM Products WHERE Price > 120;,"SELECT P.ProductID, P.Name, OD.Quantity FROM OrderDetails OD JOIN Products P ON OD.ProductID = P.ProductID WHERE OD.OrderID = 3",12.632590055465698
+¿Cuáles son los detalles de los pedidos y sus productos asociados para el cliente con ID 2?,"SELECT o.OrderID, o.OrderDate, p.Name, od.Quantity, od.Subtotal FROM Orders o INNER JOIN OrderDetails od ON o.OrderID = od.OrderID INNER JOIN Products p ON od.ProductID = p.ProductID WHERE o.CustomerID = 2;","SELECT P.ProductID, P.Name, OD.Quantity, OD.Subtotal FROM OrderDetails OD JOIN Products P ON OD.ProductID = P.ProductID WHERE OD.OrderID = 3;",12.514129638671875

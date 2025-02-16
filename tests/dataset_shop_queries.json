@@ -1,0 +1,12 @@
+{
+    "¿Cuáles son los detalles de todos los clientes?": "SELECT * FROM Customers;",
+    "¿Cuáles son los productos disponibles en la categoría 'Women'?":"SELECT * FROM Products WHERE Category = 'Women';",
+    "¿Cuál es el precio total de todos los pedidos realizados por un cliente específico con ID 5?": "SELECT SUM(TotalAmount) FROM Orders WHERE CustomerID = 5;",
+    "¿Cuántos productos están en stock con una cantidad mayor a 20 unidades?":"SELECT * FROM Products WHERE StockQuantity > 20;",
+    "¿Qué productos han sido comprados en el pedido con ID 3?": "SELECT p.Name, od.Quantity, od.Subtotal FROM OrderDetails od INNER JOIN Products p ON od.ProductID = p.ProductID WHERE od.OrderID = 3;",
+    "¿Cuál es el nombre y apellido del cliente que tiene el correo electrónico 'juan.perez@email.com'?":"SELECT FirstName, LastName FROM Customers WHERE Email = 'juan.perez@email.com';",
+    "¿Qué pedidos fueron realizados el 14 de febrero de 2025?":"SELECT * FROM Orders WHERE OrderDate = '2025-02-14';",
+    "¿Cuántos productos en total fueron comprados en el pedido con ID 1?":"SELECT SUM(Quantity) FROM OrderDetails WHERE OrderID = 1;",
+    "¿Qué productos tienen un precio superior a 120?":"SELECT * FROM Products WHERE Price > 120;",
+    "¿Cuáles son los detalles de los pedidos y sus productos asociados para el cliente con ID 2?":"SELECT o.OrderID, o.OrderDate, p.Name, od.Quantity, od.Subtotal FROM Orders o INNER JOIN OrderDetails od ON o.OrderID = od.OrderID INNER JOIN Products p ON od.ProductID = p.ProductID WHERE o.CustomerID = 2;"
+}

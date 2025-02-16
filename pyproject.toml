@@ -1,44 +1,31 @@
 [project]
-name = "sql-agent-lab"
+name = "sql_agent"
 version = "0.0.1"
 description = "This is a lab to explore sql agents"
 authors = [{ name = "Pilar Madariaga", email = "pilar.madariaga@gft.com" }]
 readme = "README.md"
 keywords = ['python']
 requires-python = ">=3.9,<4.0"
-classifiers = [
-    "Intended Audience :: Developers",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-]
 dependencies = [
-    "google-search-results>=2.4.2",
-    "ipykernel>=6.29.5",
-    "ipywidgets>=8.1.5",
-    "jupyter>=1.1.1",
-    "langchain-community>=0.3.17",
-    "langchain-huggingface>=0.1.2",
-    "langchain-ollama>=0.2.3",
-    "langgraph>=0.2.70",
-    "markupsafe>=3.0.2",
-    "numexpr>=2.10.2",
-    "openpyxl>=3.1.5",
+    "agno>=1.1.0",
+    "gradio>=4.44.1",
+    "ollama>=0.4.7",
+    #"google-search-results>=2.4.2",
+    #"ipykernel>=6.29.5",
+    #"ipywidgets>=8.1.5",
+    #"jupyter>=1.1.1",
+    #"langchain-community>=0.3.17",
+    #"langchain-huggingface>=0.1.2",
+    #"langchain-ollama>=0.2.3",
+    #"langgraph>=0.2.70",
+    #"markupsafe>=3.0.2",
+    #"numexpr>=2.10.2",
+    #"openpyxl>=3.1.5",
     "pandas>=2.2.3",
     "plotly>=6.0.0",
     "python-dotenv>=1.0.1",
+    "sqlalchemy>=2.0.38",
 ]
-
-[project.urls]
-Homepage = "https://pilarcode.github.io/sql-agent-lab/"
-Repository = "https://github.com/pilarcode/sql-agent-lab"
-Documentation = "https://pilarcode.github.io/sql-agent-lab/"
-
 [dependency-groups]
 dev = [
     "pytest>=7.2.0",
@@ -69,54 +56,3 @@ show_error_codes = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
-[tool.ruff]
-target-version = "py39"
-line-length = 120
-fix = true
-
-[tool.ruff.lint]
-select = [
-    # flake8-2020
-    "YTT",
-    # flake8-bandit
-    "S",
-    # flake8-bugbear
-    "B",
-    # flake8-builtins
-    "A",
-    # flake8-comprehensions
-    "C4",
-    # flake8-debugger
-    "T10",
-    # flake8-simplify
-    "SIM",
-    # isort
-    "I",
-    # mccabe
-    "C90",
-    # pycodestyle
-    "E", "W",
-    # pyflakes
-    "F",
-    # pygrep-hooks
-    "PGH",
-    # pyupgrade
-    "UP",
-    # ruff
-    "RUF",
-    # tryceratops
-    "TRY",
-]
-ignore = [
-    # LineTooLong
-    "E501",
-    # DoNotAssignLambda
-    "E731",
-]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"]
-
-[tool.ruff.format]
-preview = true

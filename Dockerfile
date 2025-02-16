@@ -18,4 +18,4 @@ ADD . /app
 # Sync the project
 RUN uv sync --frozen
 
-CMD [ "python", "sql_agent_lab/foo.py"]
+CMD [ "python", "app/main.py"]
