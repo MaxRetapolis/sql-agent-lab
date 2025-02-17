@@ -47,6 +47,5 @@ python app/main.py
 Go to http://127.0.0.1:8046/
 
 
-
 ## ◻️ Demo
 ![demo](docs/demo.png)
