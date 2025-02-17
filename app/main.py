@@ -1,6 +1,6 @@
 import os
 import gradio as gr
-from sql_agent.agent import Text2SQLAgent
+from sql_agent.agno_agent import Text2SQLAgent
 from sql_agent.utils import logger 
 
 log = logger.get_logger(__name__)
@@ -15,8 +15,10 @@ USER_ICON = "app/assets/user.png"
 
 def respond(question, history):
     """ Respond to user input. """
-    agent = Text2SQLAgent()
-    return  agent.request(question)
+    agent = Text2SQLAgent(db_url='sqlite:///app/data/shop.db')
+    sql_query, answer =  agent.request(question)
+    response = "\n".join([f"SQL Query: {sql_query}", f"SQL Result: {answer}"])
+    return response
 
 chatbot = gr.ChatInterface(
     fn=respond,
