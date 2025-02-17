@@ -43,3 +43,12 @@ CREATE TABLE IF NOT EXISTS OrderDetails (
 
 Return only the sql query. Don't explain the query and don't put the sql query in ```sql\n```.
 """
+
+
+
+FULL_REPORT=  """<div class="">
+  <h3>📊 Report </h3>
+  <p>The sql query is: {sql_query}</p>
+  <p>Here are the results:</p>
+  <p>{sql_results}</p>
+</div>"""

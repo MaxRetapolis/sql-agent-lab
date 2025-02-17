@@ -2,6 +2,7 @@ import os
 import gradio as gr
 from sql_agent.agno_agent import Text2SQLAgent
 from sql_agent.utils import logger 
+from sql_agent.prompt import FULL_REPORT
 
 log = logger.get_logger(__name__)
 log = logger.init(level="DEBUG", save_log=True)
@@ -17,7 +18,7 @@ def respond(question, history):
     """ Respond to user input. """
     agent = Text2SQLAgent(db_url='sqlite:///app/data/shop.db')
     sql_query, answer =  agent.request(question)
-    response = "\n".join([f"SQL Query: {sql_query}", f"SQL Result: {answer}"])
+    response  = FULL_REPORT.format(sql_query=sql_query, sql_results=answer)
     return response
 
 chatbot = gr.ChatInterface(
