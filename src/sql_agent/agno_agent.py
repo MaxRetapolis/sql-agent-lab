@@ -23,7 +23,7 @@ class Text2SQLAgent:
     """ Text to SQL Agent to convert natural language to SQL """
     db_url: Optional[str] = None
     data_dir: str = "app/data"
-    model_id: str = "qwen2.5-coder:1.5b"
+    model_id: str = "phi:latest"  # Changed default to phi:latest as most reliable
     ollama_host: Optional[str] = None
     
     def __post_init__(self):

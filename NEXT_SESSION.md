@@ -4,15 +4,16 @@
 
 1. **Model Compatibility Issues**
    - ✅ Doubled all timeout values throughout the codebase
-   - All tested models (qwen2.5-coder:0.5b, qwen2.5-coder:1.5b, llama3.2:1b) still have tensor initialization errors
-   - Other models (deepseek-r1:1.5b, phi:latest) work with extended timeouts but are very slow (2-3 minutes)
+   - ✅ Tested phi:latest and deepseek-r1:1.5b models - confirmed working but slow
+   - ✅ Created configurable timeout system with env var overrides
+   - Other models (qwen2.5-coder:0.5b, qwen2.5-coder:1.5b, llama3.2:1b) still have tensor initialization errors
    - gemma2:latest still has architecture compatibility issues
-   - Solutions to pursue:
-     - Setup a remote Ollama server with better resources (highest priority)
-     - Try different model architectures, particularly smaller models (<1B parameters)
-     - Investigate tensor initialization errors (possibly related to library incompatibilities)
-     - Consider updating Ollama to a newer version
-     - Try alternative LLM backends like LM Studio or local OpenAI-compatible servers
+   - Recommendations:
+     - Set phi:latest as the default model (most reliable in testing)
+     - Consider switching to remote mode with more powerful hardware
+     - For local use, recommend OLLAMA_TIMEOUT_INFERENCE_FIRST_TOKEN=180 (3 min)
+     - Document the slow performance for users (2-3 minute response times)
+     - Focus optimization efforts on model caching and query pre-processing
 
 2. **Package Dependencies**
    - Establish a proper virtual environment for the application

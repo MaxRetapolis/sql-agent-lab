@@ -47,11 +47,13 @@ uv venv .venv
 uv pip install -e .
 ```
 
-◽  **Step 4** Make sure you have Ollama installed and running with the qwen2.5-coder model
+◽  **Step 4** Make sure you have Ollama installed and running with the recommended model
 
 ```bash
-ollama pull qwen2.5-coder:7b
+ollama pull phi:latest
 ```
+
+> Note: On lower-spec hardware, models may take 2-3 minutes to respond. For better performance, consider using remote mode with more powerful hardware.
 
 ## ◻️ Usage
 
@@ -66,7 +68,7 @@ Go to http://127.0.0.1:8046/
 ### Environment Variables
 
 - `OLLAMA_HOST` - Ollama server URL (default: http://192.168.1.37:11434)
-- `DEFAULT_MODEL` - Default Ollama model to use (default: qwen2.5-coder:7b)
+- `DEFAULT_MODEL` - Default Ollama model to use (default: phi:latest)
 - `UI_PORT` - Port for the web interface (default: 8046)
 - `STATUS_INTERVAL` - Seconds between state/status file updates (default: 60)
 
@@ -84,7 +86,11 @@ See [model_timeouts.md](docs/model_timeouts.md) for complete documentation.
 Example with custom settings:
 
 ```bash
-OLLAMA_HOST=http://192.168.1.100:11434 DEFAULT_MODEL=llama3:8b OLLAMA_TIMEOUT_INFERENCE_FIRST_TOKEN=120 python app/main.py
+# For normal use:
+OLLAMA_HOST=http://192.168.1.100:11434 DEFAULT_MODEL=phi:latest python app/main.py
+
+# For slower hardware:
+OLLAMA_TIMEOUT_INFERENCE_FIRST_TOKEN=180 OLLAMA_TIMEOUT_INFERENCE_COMPLETION=600 python app/main.py
 ```
 
 ### Ollama Integration Options

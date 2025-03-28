@@ -9,9 +9,12 @@
      - `qwen2.5-coder:0.5b` (531 MB) - ❌ Tensor initialization error
      - `qwen2.5-coder:1.5b` (986 MB) - ❌ Tensor initialization error 
      - `llama3.2:1b` (1.3 GB) - ❌ Tensor initialization error
-     - `deepseek-r1:1.5b` (1.1 GB) - ⚠️ Very slow response time (starts generating after ~2-3 minutes)
-     - `phi:latest` (1.6 GB) - ⚠️ Very slow response time (starts generating after ~2-3 minutes)
+     - `deepseek-r1:1.5b` (1.1 GB) - ✅ Functional but slow (takes about 2-3 minutes)
+     - `phi:latest` (1.6 GB) - ✅ Functional but slow (takes about 2-3 minutes, preferred option)
      - `gemma2:latest` (5.4 GB) - ❌ Unknown model architecture error
+   - Extended timeout testing confirmed:
+     - phi:latest responds correctly with simple SQL generation
+     - Models work but require very long timeouts (2-3 minutes)
 
 2. **Database Files**
    - ✅ `app/data/shop.db` - Contains product, customer, order data
