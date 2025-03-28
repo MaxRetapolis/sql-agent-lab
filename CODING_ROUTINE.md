@@ -118,21 +118,19 @@ Co-Authored-By: Claude <noreply@anthropic.com>
   - Security implications
 
 ## Daily Documentation Update Process
-1. Create new dated session files at the end of each coding session:
+1. Run the automated documentation creation script at the end of each session:
    ```bash
-   # Get current date
-   TODAY=$(date +"%Y-%m-%d")
+   # Navigate to the scripts directory
+   cd scripts
    
-   # Create session summary from template
-   cp SESSION_SUMMARY.md SESSION_SUMMARY_$TODAY.md
-   
-   # Create next session file with tomorrow's date
-   TOMORROW=$(date -d "tomorrow" +"%Y-%m-%d")
-   cp NEXT_SESSION.md NEXT_SESSION_$TOMORROW.md
+   # Run the documentation creation script
+   ./create_session_docs.sh
    ```
 
-2. Update the generic files to point to the latest dated files:
-   ```bash
-   ln -sf SESSION_SUMMARY_$TODAY.md SESSION_SUMMARY.md
-   ln -sf NEXT_SESSION_$TOMORROW.md NEXT_SESSION.md
-   ```
+2. The script will:
+   - Create new dated session summary file (SESSION_SUMMARY_YYYY-MM-DD.md)
+   - Create new dated next session file (NEXT_SESSION_YYYY-MM-DD.md)
+   - Update the symbolic links to point to the latest files
+   - Display a summary of actions taken
+
+3. Manually edit the created files to fill in the session details
