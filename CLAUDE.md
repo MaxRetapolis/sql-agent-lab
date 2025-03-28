@@ -4,6 +4,12 @@
 - See [SESSION_SUMMARY.md](SESSION_SUMMARY.md) for the latest development progress
 - See [NEXT_SESSION.md](NEXT_SESSION.md) for planned tasks and issues to address
 - See [TEST_RESULTS.md](TEST_RESULTS.md) for detailed test results and system status
+- See [CODING_ROUTINE.md](CODING_ROUTINE.md) for development practices and documentation standards
+
+## Daily Documentation
+- All session summaries follow the date-based naming format: `SESSION_SUMMARY_YYYY-MM-DD.md`
+- Next session planning files follow: `NEXT_SESSION_YYYY-MM-DD.md`
+- The main SESSION_SUMMARY.md and NEXT_SESSION.md files link to the latest dated versions
 
 ## Build & Run Commands
 - `make install` - Set up virtual environment and pre-commit hooks
