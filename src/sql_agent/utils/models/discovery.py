@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 import requests
 from sql_agent.utils import logger
+from sql_agent.utils.models.config import get_timeout
 
 log = logger.get_logger(__name__)
 
@@ -43,7 +44,7 @@ class OllamaDiscovery:
         
         try:
             # Try using the Ollama API directly
-            response = requests.get(f"{self.ollama_host}/api/tags")
+            response = requests.get(f"{self.ollama_host}/api/tags", timeout=get_timeout("api_calls"))
             if response.status_code == 200:
                 model_list = response.json().get("models", [])
                 
@@ -60,7 +61,8 @@ class OllamaDiscovery:
                     try:
                         details_response = requests.post(
                             f"{self.ollama_host}/api/show", 
-                            json={"name": model_name}
+                            json={"name": model_name},
+                            timeout=get_timeout("api_calls")
                         )
                         if details_response.status_code == 200:
                             self.models[model_name].details = details_response.json()
@@ -117,7 +119,8 @@ class OllamaDiscovery:
         try:
             details_response = requests.post(
                 f"{self.ollama_host}/api/show", 
-                json={"name": model_name}
+                json={"name": model_name},
+                timeout=get_timeout("api_calls")
             )
             if details_response.status_code == 200:
                 details = details_response.json()
@@ -140,7 +143,10 @@ class OllamaDiscovery:
             True if Ollama is available, False otherwise
         """
         try:
-            response = requests.get(f"{self.ollama_host}/api/version", timeout=5)
+            response = requests.get(
+                f"{self.ollama_host}/api/version", 
+                timeout=get_timeout("connection_check")
+            )
             return response.status_code == 200
         except requests.RequestException:
             return False
@@ -160,14 +166,14 @@ class OllamaDiscovery:
         
         try:
             # Check version
-            response = requests.get(f"{self.ollama_host}/api/version", timeout=5)
+            response = requests.get(f"{self.ollama_host}/api/version", timeout=get_timeout("connection_check"))
             if response.status_code == 200:
                 info["status"] = "available"
                 info["version"] = response.json().get("version", "unknown")
                 
                 # Try getting model list
                 try:
-                    models_response = requests.get(f"{self.ollama_host}/api/tags", timeout=5)
+                    models_response = requests.get(f"{self.ollama_host}/api/tags", timeout=get_timeout("api_calls"))
                     if models_response.status_code == 200:
                         model_count = len(models_response.json().get("models", []))
                         info["model_count"] = model_count

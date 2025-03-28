@@ -11,7 +11,8 @@ from agno.agent import Agent
 from sql_agent.prompt import TEXT2SQL_TEMPLATE, FULL_REPORT, DATABASE_SELECT_TEMPLATE, MODEL_SELECT_TEMPLATE
 from sql_agent.utils import logger
 from sql_agent.utils.database.discovery import DatabaseDiscovery, DatabaseInfo
-from sql_agent.utils.models.discovery import OllamaDiscovery, ModelInfo
+from sql_agent.utils.models.discovery import ModelInfo
+from sql_agent.utils.models.manager import ModelManager, ModelManagerConfig
 import pandas as pd
 
 log = logger.get_logger(__name__)
@@ -22,7 +23,7 @@ class Text2SQLAgent:
     """ Text to SQL Agent to convert natural language to SQL """
     db_url: Optional[str] = None
     data_dir: str = "app/data"
-    model_id: str = "qwen2.5-coder:7b"
+    model_id: str = "qwen2.5-coder:1.5b"
     ollama_host: Optional[str] = None
     
     def __post_init__(self):
@@ -30,13 +31,20 @@ class Text2SQLAgent:
         self.db_discovery = DatabaseDiscovery(self.data_dir)
         self.databases = self.db_discovery.discover_databases()
         
-        # Initialize model discovery with default settings
-        self.using_local_ollama = False
-        self.ollama_mode = "remote"  # Can be "remote" or "local"
-        self.models = {}
+        # Initialize model manager
+        model_config = ModelManagerConfig(
+            ollama_host=self.ollama_host,
+            default_model_id=self.model_id
+        )
+        self.model_manager = ModelManager(config=model_config)
         
-        # Try to discover models, but continue even if Ollama isn't available
-        self.check_ollama_availability()
+        # Initialize model-related properties
+        self.using_local_ollama = self.model_manager.using_local_ollama
+        self.ollama_mode = self.model_manager.ollama_mode
+        self.ollama_host = self.model_manager.ollama_host
+        self.models = self.model_manager.models
+        self.current_model_id = self.model_manager.current_model_id
+        self.ollama_available = self.model_manager.ollama_available
         
         # Set the default database if db_url is not provided
         if not self.db_url and self.databases:
@@ -55,9 +63,6 @@ class Text2SQLAgent:
         else:
             raise ValueError("No databases found in the data directory")
         
-        # Use the specified model_id or fallback if not available
-        self.current_model_id = self.model_id
-        
         # Initialize agent with available model
         self.initialize_agent()
         
@@ -65,85 +70,29 @@ class Text2SQLAgent:
         self.update_db_connection(self.db_url)
     
     def check_ollama_availability(self):
-        """Check if Ollama is available locally or remotely."""
-        # First try local Ollama
-        try:
-            import subprocess
-            result = subprocess.run(
-                ["which", "ollama"], 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=2
-            )
-            if result.returncode == 0:
-                log.info("Local Ollama installation found")
-                self.using_local_ollama = True
-                self.ollama_mode = "local"
-                # Use localhost for local Ollama
-                self.ollama_host = "http://localhost:11434"
-                self.model_discovery = OllamaDiscovery(ollama_host=self.ollama_host)
-                # Try to discover local models
-                try:
-                    self.models = self.model_discovery.discover_models()
-                    if self.models:
-                        self.ollama_available = True
-                        log.info(f"Found {len(self.models)} local models")
-                    else:
-                        log.warning("No local models found. Local Ollama might not be running.")
-                        self.ollama_available = False
-                except Exception as e:
-                    log.warning(f"Failed to discover local Ollama models: {e}")
-                    self.ollama_available = False
-            else:
-                log.info("No local Ollama installation found, using remote mode")
-                self._try_remote_ollama()
-        except Exception as e:
-            log.warning(f"Error checking for local Ollama: {e}")
-            self._try_remote_ollama()
-    
-    def _try_remote_ollama(self):
-        """Try to connect to remote Ollama server."""
-        self.using_local_ollama = False
-        self.ollama_mode = "remote"
-        # Use the provided remote host or default
-        self.model_discovery = OllamaDiscovery(ollama_host=self.ollama_host)
-        try:
-            self.models = self.model_discovery.discover_models()
-            self.ollama_available = True
-            log.info(f"Connected to remote Ollama at {self.ollama_host}")
-            log.info(f"Found {len(self.models)} remote models")
-        except Exception as e:
-            log.warning(f"Failed to discover remote Ollama models: {e}")
-            self.ollama_available = False
+        """Check if Ollama is available locally or remotely.
+        
+        Returns:
+            True if available, False otherwise
+        """
+        # Just delegate to model manager
+        self.ollama_available = self.model_manager.check_ollama_availability()
+        
+        # Update our properties to match model manager
+        self.using_local_ollama = self.model_manager.using_local_ollama
+        self.ollama_mode = self.model_manager.ollama_mode
+        self.ollama_host = self.model_manager.ollama_host
+        self.models = self.model_manager.models
+        
+        return self.ollama_available
     
     def initialize_agent(self):
         """Initialize the agent with the current model.
         
-        If the specified model is not available, it will try a default.
+        If the specified model is not available, it will try a fallback.
         """
-        # Determine if we need to pull the model for local Ollama
-        if self.using_local_ollama and self.ollama_available:
-            try:
-                # Check if we need to pull the model
-                if self.current_model_id not in self.models:
-                    log.info(f"Model {self.current_model_id} not found locally. Attempting to pull...")
-                    import subprocess
-                    result = subprocess.run(
-                        ["ollama", "pull", self.current_model_id],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        timeout=600  # Allow up to 10 minutes for model download
-                    )
-                    if result.returncode == 0:
-                        log.info(f"Successfully pulled model {self.current_model_id}")
-                        # Refresh model list
-                        self.models = self.model_discovery.discover_models()
-                    else:
-                        log.error(f"Failed to pull model {self.current_model_id}: {result.stderr}")
-            except Exception as e:
-                log.error(f"Error pulling model: {e}")
+        # Get the best model from model manager
+        self.current_model_id, is_fallback = self.model_manager.get_best_model()
         
         try:
             # Create the Ollama model with appropriate options for mode
@@ -166,50 +115,7 @@ class Text2SQLAgent:
         
         except Exception as e:
             log.error(f"Failed to initialize model {self.current_model_id}: {e}")
-            # Try a fallback if the current model isn't available
-            fallback_models = [
-                "qwen2.5-coder:1.5b",  # Try smaller model first
-                "qwen2.5-coder:0.5b",  # Even smaller
-                "llama3:8b",
-                "phi3:mini"
-            ]
-            
-            for fallback in fallback_models:
-                try:
-                    log.info(f"Trying fallback model: {fallback}")
-                    
-                    # For local Ollama, try to pull the model if needed
-                    if self.using_local_ollama and fallback not in self.models:
-                        try:
-                            import subprocess
-                            log.info(f"Pulling fallback model {fallback}...")
-                            result = subprocess.run(
-                                ["ollama", "pull", fallback],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                text=True,
-                                timeout=600
-                            )
-                            if result.returncode != 0:
-                                log.error(f"Failed to pull fallback model {fallback}")
-                                continue
-                        except Exception:
-                            continue
-                    
-                    # Initialize the model
-                    if self.using_local_ollama:
-                        self.ollama_model = Ollama(id=fallback, base_url="http://localhost:11434")
-                    else:
-                        self.ollama_model = Ollama(id=fallback, base_url=self.ollama_host)
-                    
-                    self.current_model_id = fallback
-                    break
-                except Exception:
-                    continue
-            
-            if not hasattr(self, 'ollama_model'):
-                log.error("Could not initialize any model")
-                raise ValueError("No Ollama models available")
+            raise ValueError("Failed to initialize model. No working models available.")
     
     def update_db_connection(self, db_url: str) -> None:
         """Update the database connection and refresh the agent.
@@ -351,13 +257,9 @@ class Text2SQLAgent:
         Returns:
             Dict of model information
         """
-        # Refresh the model discovery
-        try:
-            self.models = self.model_discovery.discover_models()
-            self.ollama_available = True
-        except Exception as e:
-            log.warning(f"Failed to discover Ollama models: {e}")
-            self.ollama_available = False
+        # Refresh the model discovery through model manager
+        self.models = self.model_manager.get_model_list()
+        self.ollama_available = self.model_manager.ollama_available
             
         return self.models
     
@@ -398,39 +300,14 @@ class Text2SQLAgent:
         elif model_name.lower() == "remote":
             return self.switch_to_remote_mode()
         
-        # For regular model switching:
-        # First check if the model exists (or can be pulled in local mode)
-        model_exists = (model_name in self.models or 
-                       self.model_discovery.get_model_details(model_name) is not None)
-        
-        if not model_exists and self.using_local_ollama:
-            # If in local mode and model not found, try to pull it
-            try:
-                log.info(f"Model {model_name} not found locally. Attempting to pull...")
-                import subprocess
-                result = subprocess.run(
-                    ["ollama", "pull", model_name],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    timeout=600
-                )
-                if result.returncode == 0:
-                    log.info(f"Successfully pulled model {model_name}")
-                    # Refresh model list
-                    self.models = self.model_discovery.discover_models()
-                    model_exists = True
-                else:
-                    log.error(f"Failed to pull model {model_name}: {result.stderr}")
-            except Exception as e:
-                log.error(f"Error pulling model: {e}")
-        
-        if not model_exists:
-            log.error(f"Model {model_name} not found and could not be pulled")
-            return False
+        # Check if the model exists or can be pulled
+        if model_name not in self.models and self.model_manager.using_local_ollama:
+            # Try to pull the model
+            if not self.model_manager.pull_model(model_name):
+                return False
         
         try:
-            # Try to initialize with the new model
+            # Save old model ID
             old_model_id = self.current_model_id
             self.current_model_id = model_name
             
@@ -469,171 +346,38 @@ class Text2SQLAgent:
     
     def switch_to_local_mode(self) -> bool:
         """Switch to using local Ollama instance."""
-        if self.using_local_ollama:
-            log.info("Already in local mode")
-            return True
+        # Use model manager to switch to local
+        success = self.model_manager.switch_to_local_mode()
         
-        try:
-            # Check if local Ollama is available
-            import subprocess
-            result = subprocess.run(
-                ["which", "ollama"], 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=2
-            )
+        if success:
+            # Update our local properties to match manager
+            self.using_local_ollama = self.model_manager.using_local_ollama
+            self.ollama_mode = self.model_manager.ollama_mode
+            self.ollama_host = self.model_manager.ollama_host
+            self.current_model_id = self.model_manager.current_model_id
+            self.models = self.model_manager.models
+            self.ollama_available = self.model_manager.ollama_available
             
-            if result.returncode != 0:
-                log.error("Local Ollama installation not found")
-                return False
-            
-            # Save old settings
-            old_mode = self.ollama_mode
-            old_host = self.ollama_host
-            old_model_id = self.current_model_id
-            
-            # Switch to local mode
-            self.using_local_ollama = True
-            self.ollama_mode = "local"
-            self.ollama_host = "http://localhost:11434"
-            
-            # Create new model discovery
-            self.model_discovery = OllamaDiscovery(ollama_host=self.ollama_host)
-            
-            # Try to discover local models
-            try:
-                self.models = self.model_discovery.discover_models()
-                if not self.models:
-                    log.warning("No local models found. Starting Ollama service...")
-                    # Try to start local Ollama service
-                    subprocess.Popen(
-                        ["ollama", "serve"],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
-                    )
-                    # Wait a moment for Ollama to start
-                    import time
-                    time.sleep(2)
-                    # Try again to discover models
-                    self.models = self.model_discovery.discover_models()
-            except Exception as e:
-                log.error(f"Error discovering local models: {e}")
-                self.models = {}
-            
-            # Check if the current model is available locally or needs to be pulled
-            if old_model_id not in self.models:
-                # Try to find a suitable local model
-                if self.models:
-                    # Use the first available model
-                    self.current_model_id = next(iter(self.models.keys()))
-                else:
-                    # Try to pull a small model
-                    try:
-                        small_model = "qwen2.5-coder:1.5b"
-                        log.info(f"Pulling {small_model}...")
-                        result = subprocess.run(
-                            ["ollama", "pull", small_model],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            text=True,
-                            timeout=600
-                        )
-                        if result.returncode == 0:
-                            self.current_model_id = small_model
-                            # Refresh models
-                            self.models = self.model_discovery.discover_models()
-                        else:
-                            log.error(f"Failed to pull model: {result.stderr}")
-                            # Revert to previous mode
-                            self.using_local_ollama = False
-                            self.ollama_mode = old_mode
-                            self.ollama_host = old_host
-                            self.current_model_id = old_model_id
-                            return False
-                    except Exception as e:
-                        log.error(f"Error pulling model: {e}")
-                        # Revert to previous mode
-                        self.using_local_ollama = False
-                        self.ollama_mode = old_mode
-                        self.ollama_host = old_host
-                        self.current_model_id = old_model_id
-                        return False
-            
-            # Initialize agent with the new model
-            try:
-                self.initialize_agent()
-                log.info(f"Switched to local mode using model {self.current_model_id}")
-                return True
-            except Exception as e:
-                log.error(f"Failed to initialize agent in local mode: {e}")
-                # Revert to previous mode
-                self.using_local_ollama = False
-                self.ollama_mode = old_mode
-                self.ollama_host = old_host
-                self.current_model_id = old_model_id
-                return False
-                
-        except Exception as e:
-            log.error(f"Error switching to local mode: {e}")
-            return False
+            # Reinitialize agent with new model
+            self.initialize_agent()
+        
+        return success
     
     def switch_to_remote_mode(self) -> bool:
         """Switch to using remote Ollama instance."""
-        if not self.using_local_ollama:
-            log.info("Already in remote mode")
-            return True
+        # Use model manager to switch to remote
+        success = self.model_manager.switch_to_remote_mode()
         
-        # Save old settings
-        old_mode = self.ollama_mode
-        old_using_local = self.using_local_ollama
-        old_model_id = self.current_model_id
+        if success:
+            # Update our local properties to match manager
+            self.using_local_ollama = self.model_manager.using_local_ollama
+            self.ollama_mode = self.model_manager.ollama_mode
+            self.ollama_host = self.model_manager.ollama_host
+            self.current_model_id = self.model_manager.current_model_id
+            self.models = self.model_manager.models
+            self.ollama_available = self.model_manager.ollama_available
+            
+            # Reinitialize agent with new model
+            self.initialize_agent()
         
-        try:
-            # Switch to remote mode
-            self.using_local_ollama = False
-            self.ollama_mode = "remote"
-            # Use the previously configured remote host or default
-            if not self.ollama_host or self.ollama_host == "http://localhost:11434":
-                self.ollama_host = "http://192.168.1.37:11434"  # Default remote host
-            
-            # Create new model discovery
-            self.model_discovery = OllamaDiscovery(ollama_host=self.ollama_host)
-            
-            # Try to discover remote models
-            try:
-                self.models = self.model_discovery.discover_models()
-                self.ollama_available = bool(self.models)
-            except Exception as e:
-                log.error(f"Error discovering remote models: {e}")
-                self.models = {}
-                self.ollama_available = False
-            
-            # Check if the current model is available remotely
-            if not self.ollama_available or old_model_id not in self.models:
-                if self.models:
-                    # Use the first available model
-                    self.current_model_id = next(iter(self.models.keys()))
-                else:
-                    # Use a common model name and hope it exists
-                    self.current_model_id = "qwen2.5-coder:7b"
-            else:
-                # Keep using the same model
-                self.current_model_id = old_model_id
-            
-            # Initialize agent with the new model
-            try:
-                self.initialize_agent()
-                log.info(f"Switched to remote mode using model {self.current_model_id}")
-                return True
-            except Exception as e:
-                log.error(f"Failed to initialize agent in remote mode: {e}")
-                # Revert to previous mode
-                self.using_local_ollama = old_using_local
-                self.ollama_mode = old_mode
-                self.current_model_id = old_model_id
-                return False
-                
-        except Exception as e:
-            log.error(f"Error switching to remote mode: {e}")
-            return False
+        return success

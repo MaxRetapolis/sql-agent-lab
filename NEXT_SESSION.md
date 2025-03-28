@@ -2,10 +2,17 @@
 
 ## Critical Issues to Address
 
-1. **Model Initialization Error**
-   - Investigate why qwen2.5-coder:0.5b has tensor initialization issues
-   - Test alternative models (llama3:8b, phi3:mini, qwen2.5-coder:1.5b)
-   - Implement more robust fallback mechanism in the agent
+1. **Model Compatibility Issues**
+   - ✅ Doubled all timeout values throughout the codebase
+   - All tested models (qwen2.5-coder:0.5b, qwen2.5-coder:1.5b, llama3.2:1b) still have tensor initialization errors
+   - Other models (deepseek-r1:1.5b, phi:latest) work with extended timeouts but are very slow (2-3 minutes)
+   - gemma2:latest still has architecture compatibility issues
+   - Solutions to pursue:
+     - Setup a remote Ollama server with better resources (highest priority)
+     - Try different model architectures, particularly smaller models (<1B parameters)
+     - Investigate tensor initialization errors (possibly related to library incompatibilities)
+     - Consider updating Ollama to a newer version
+     - Try alternative LLM backends like LM Studio or local OpenAI-compatible servers
 
 2. **Package Dependencies**
    - Establish a proper virtual environment for the application
@@ -16,9 +23,11 @@
    - Consider using a requirements.txt file for better dependency management
 
 3. **Application Testing**
-   - Test full application with both local and remote Ollama
+   - ✅ Verified local models work but with high latency (CPU bottleneck)
+   - Test full application with remote Ollama
    - Verify mode switching functionality in the UI
    - Test session recovery mechanisms
+   - Create benchmarks to measure query response times with different models
 
 ## Enhancement Ideas
 
@@ -52,10 +61,12 @@
 ## Testing Strategy
 
 1. Create test scripts for each major component:
-   - Ollama connectivity tests
-   - SQL query generation tests
+   - ✅ Ollama connectivity tests with extended timeouts
+   - ✅ Basic model inference tests with CLI and Python
+   - SQL query generation tests with working models
    - Database discovery tests
    - UI component tests
+   - Performance benchmarks for different hardware configurations
 
 2. Develop integration tests for the complete workflow
 

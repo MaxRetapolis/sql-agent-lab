@@ -4,9 +4,14 @@
 
 1. **Ollama Service**
    - ✅ Ollama installed successfully in `/home/coder/bin/ollama`
-   - ✅ Ollama service is running
-   - ✅ Model `qwen2.5-coder:0.5b` installed (531 MB)
-   - ❌ Model has issues generating SQL queries (tensor 'output.weight' not found)
+   - ✅ Ollama service is running (high CPU usage: ~85%)
+   - ✅ Multiple models installed:
+     - `qwen2.5-coder:0.5b` (531 MB) - ❌ Tensor initialization error
+     - `qwen2.5-coder:1.5b` (986 MB) - ❌ Tensor initialization error 
+     - `llama3.2:1b` (1.3 GB) - ❌ Tensor initialization error
+     - `deepseek-r1:1.5b` (1.1 GB) - ⚠️ Very slow response time (starts generating after ~2-3 minutes)
+     - `phi:latest` (1.6 GB) - ⚠️ Very slow response time (starts generating after ~2-3 minutes)
+     - `gemma2:latest` (5.4 GB) - ❌ Unknown model architecture error
 
 2. **Database Files**
    - ✅ `app/data/shop.db` - Contains product, customer, order data
@@ -36,12 +41,20 @@
      python3 -m pip install --user python-dotenv gradio sqlalchemy agno
      ```
 
-2. **Ollama Model Issue**
-   - The qwen2.5-coder:0.5b model seems to have an initialization issue
+2. **Ollama Model Issues**
+   - All tested models have significant issues:
+     - Most models have tensor initialization errors (`tensor 'output.weight' not found`)
+     - Some models take 2-3 minutes to generate even simple SQL queries (hardware limitation)
+     - The gemma2 model has architecture compatibility issues
+   - Improvements made:
+     - ✅ Doubled all timeout values throughout the codebase
+     - ✅ Some models (phi, deepseek) now work with extended timeouts
+     - ✅ Tested direct CLI usage which confirmed the slowness is hardware-related
    - Options:
-     - Try a different model like llama3:8b or phi3:mini
-     - Re-download the qwen2.5-coder:0.5b model
-     - Switch to remote Ollama instance if working
+     - Switch to remote Ollama mode with a more powerful server
+     - Try different model architectures (non-Qwen, non-Llama)
+     - Add more robust error handling and automatic failover
+     - Update Ollama to the latest version
 
 3. **Database Schema**
    - The databases are valid and contain usable data

@@ -8,7 +8,7 @@ import time
 import concurrent.futures
 import socket
 
-def test_host(ip, port=11434, timeout=2):
+def test_host(ip, port=11434, timeout=4):
     """Test if we can connect to the given host and port."""
     try:
         # First check if we can connect to the port

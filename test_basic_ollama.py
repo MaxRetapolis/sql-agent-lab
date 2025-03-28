@@ -14,7 +14,7 @@ def test_local_ollama():
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE,
             text=True,
-            timeout=2
+            timeout=4
         )
         if result.returncode == 0:
             print(f"✅ Local Ollama found at: {result.stdout.strip()}")
@@ -32,7 +32,7 @@ def test_local_ollama():
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE,
             text=True,
-            timeout=2
+            timeout=4
         )
         if result.returncode == 0:
             print(f"✅ Ollama service is running (PID: {result.stdout.strip()})")
@@ -67,7 +67,7 @@ def test_local_ollama():
                 stdout=subprocess.PIPE, 
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=5
+                timeout=10
             )
             if result.returncode == 0:
                 print("✅ Ollama is ready")
@@ -112,7 +112,7 @@ def test_local_ollama():
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         text=True,
-                        timeout=600
+                        timeout=1200
                     )
                     if pull_result.returncode == 0:
                         print("✅ Successfully pulled model qwen2.5-coder:0.5b")
@@ -141,7 +141,7 @@ def test_local_ollama():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            timeout=30
+            timeout=60
         )
         
         if result.returncode == 0:

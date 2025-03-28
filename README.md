@@ -70,10 +70,21 @@ Go to http://127.0.0.1:8046/
 - `UI_PORT` - Port for the web interface (default: 8046)
 - `STATUS_INTERVAL` - Seconds between state/status file updates (default: 60)
 
+#### Timeout Configuration
+
+You can configure timeouts for different operations using environment variables:
+
+- `OLLAMA_TIMEOUT_MODEL_DOWNLOAD` - Timeout for model downloads (default: 1200s)
+- `OLLAMA_TIMEOUT_API_CALLS` - Timeout for API calls (default: 30s)
+- `OLLAMA_TIMEOUT_INFERENCE_FIRST_TOKEN` - Timeout for getting first token (default: 60s)
+- `OLLAMA_TIMEOUT_INFERENCE_COMPLETION` - Timeout for completing inference (default: 300s)
+
+See [model_timeouts.md](docs/model_timeouts.md) for complete documentation.
+
 Example with custom settings:
 
 ```bash
-OLLAMA_HOST=http://192.168.1.100:11434 DEFAULT_MODEL=llama3:8b UI_PORT=8080 STATUS_INTERVAL=30 python app/main.py
+OLLAMA_HOST=http://192.168.1.100:11434 DEFAULT_MODEL=llama3:8b OLLAMA_TIMEOUT_INFERENCE_FIRST_TOKEN=120 python app/main.py
 ```
 
 ### Ollama Integration Options

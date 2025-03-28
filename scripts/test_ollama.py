@@ -21,7 +21,7 @@ result = {
 
 try:
     # Test basic connectivity
-    response = requests.get(f"{OLLAMA_HOST}/api/version", timeout=5)
+    response = requests.get(f"{OLLAMA_HOST}/api/version", timeout=10)
     if response.status_code == 200:
         result["status"] = "available"
         result["version"] = response.json().get("version", "unknown")
@@ -29,7 +29,7 @@ try:
         
         # Try to list models
         try:
-            models_response = requests.get(f"{OLLAMA_HOST}/api/tags", timeout=5)
+            models_response = requests.get(f"{OLLAMA_HOST}/api/tags", timeout=10)
             if models_response.status_code == 200:
                 models = models_response.json().get("models", [])
                 result["model_count"] = len(models)

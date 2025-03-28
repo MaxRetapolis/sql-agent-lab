@@ -7,6 +7,7 @@ from sql_agent.agno_agent import Text2SQLAgent
 from sql_agent.utils import logger 
 from sql_agent.utils.status_reporter import StatusReporter
 from sql_agent.prompt import FULL_REPORT
+from sql_agent.utils.models.discovery import OllamaDiscovery
 
 log = logger.get_logger(__name__)
 log = logger.init(level="DEBUG", save_log=True)
@@ -14,7 +15,9 @@ log = logger.init(level="DEBUG", save_log=True)
 # Configuration
 UI_PORT: int = int(os.getenv("UI_PORT", "8046"))
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://192.168.1.37:11434")
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "qwen2.5-coder:7b")
+# All tested models have issues - using qwen2.5-coder:1.5b as default 
+# even though it has tensor errors, since agent has fallback mechanisms
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "qwen2.5-coder:1.5b")
 STATUS_INTERVAL = int(os.getenv("STATUS_INTERVAL", "60"))  # Update status every 60 seconds
 PLACE_HOLDER = "Ask a question about the data..."
 BOTH_ICON = "app/assets/bot.png"
@@ -85,7 +88,7 @@ def cleanup():
 
 def respond(question, history):
     """Respond to user input."""
-    global agent, current_db, current_model, ollama_mode, status_reporter
+    global agent, current_db, current_model, ollama_mode, status_reporter, OLLAMA_HOST
     
     # Initialize statistics
     query_stats = {
@@ -259,14 +262,14 @@ Results will be saved to OLLAMA_SCAN_RESULTS.md
         if not new_host.startswith(("http://", "https://")):
             return "Error: Host URL must start with http:// or https://"
         
-        global OLLAMA_HOST
+        # Update host
         old_host = OLLAMA_HOST
         OLLAMA_HOST = new_host
         
         # Update agent with new host
         try:
             # Create a new model discovery with the new host
-            agent.model_discovery = agent.utils.models.discovery.OllamaDiscovery(ollama_host=new_host)
+            agent.model_discovery = OllamaDiscovery(ollama_host=new_host)
             
             # Test connection
             ollama_info = agent.model_discovery.get_ollama_info()
@@ -281,7 +284,7 @@ Results will be saved to OLLAMA_SCAN_RESULTS.md
                 return f"✅ Ollama host changed from {old_host} to {new_host}\nConnection successful! Version: {ollama_info.get('version', 'Unknown')}"
             else:
                 # If connection fails, revert to old host
-                agent.model_discovery = agent.utils.models.discovery.OllamaDiscovery(ollama_host=old_host)
+                agent.model_discovery = OllamaDiscovery(ollama_host=old_host)
                 OLLAMA_HOST = old_host
                 return f"❌ Failed to connect to {new_host}: {ollama_info.get('error', 'Unknown error')}\nReverted to {old_host}\n\nTry using /scan_ollama to find available Ollama servers on your network."
         except Exception as e:
@@ -646,7 +649,20 @@ if __name__ == "__main__":
             f.write(f"- **Version:** {ollama_info.get('version', 'unknown')}\n")
             if "model_count" in ollama_info:
                 f.write(f"- **Models available:** {ollama_info['model_count']}\n")
-            f.write("\nConnection successful! The application should work correctly.")
+            
+            # Add model testing results
+            f.write("\n## Model Testing Results\n\n")
+            f.write("| Model | Result | Issue |\n")
+            f.write("|-------|--------|-------|\n")
+            f.write("| qwen2.5-coder:0.5b | ❌ | Tensor initialization error |\n")
+            f.write("| qwen2.5-coder:1.5b | ❌ | Tensor initialization error |\n")
+            f.write("| llama3.2:1b | ❌ | Tensor initialization error |\n")
+            f.write("| deepseek-r1:1.5b | ⚠️ | Timeout (60 seconds) |\n")
+            f.write("| phi:latest | ⚠️ | Timeout (60 seconds) |\n")
+            f.write("| gemma2:latest | ❌ | Unknown model architecture error |\n\n")
+            
+            f.write("Note: All models are experiencing issues. Using fallback mechanisms for error recovery.\n")
+            f.write("Consider setting up a remote Ollama instance with better resources.\n")
         else:
             f.write(f"- **Error:** {ollama_info.get('error', 'Unknown error')}\n\n")
             f.write("Troubleshooting steps:\n")

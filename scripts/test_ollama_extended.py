@@ -26,7 +26,7 @@ try:
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE,
         text=True,
-        timeout=10
+        timeout=20
     )
     print(ping_result.stdout)
     if ping_result.returncode != 0:
@@ -39,7 +39,7 @@ except Exception as e:
 # Try a socket connection to the port
 print(f"\nAttempting to connect to port {port} on {host}...")
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.settimeout(10)  # Longer timeout
+sock.settimeout(20)  # Longer timeout
 result = sock.connect_ex((host, port))
 if result == 0:
     print(f"✅ Port {port} is open on {host}")
@@ -61,8 +61,8 @@ result = {
 print(f"\n==== Attempting API Connection with Extended Timeout ====")
 try:
     # Test basic connectivity with longer timeout
-    print(f"Connecting to {OLLAMA_HOST}/api/version with 15-second timeout...")
-    response = requests.get(f"{OLLAMA_HOST}/api/version", timeout=15)
+    print(f"Connecting to {OLLAMA_HOST}/api/version with 30-second timeout...")
+    response = requests.get(f"{OLLAMA_HOST}/api/version", timeout=30)
     if response.status_code == 200:
         result["status"] = "available"
         result["version"] = response.json().get("version", "unknown")
