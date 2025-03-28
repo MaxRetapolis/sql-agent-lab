@@ -1,5 +1,5 @@
 """
-Model manager module for handling Ollama model operations.
+Model manager module for handling local and remote model operations.
 """
 import os
 import subprocess
@@ -10,7 +10,9 @@ from dataclasses import dataclass
 
 from sql_agent.utils import logger
 from sql_agent.utils.models.discovery import ModelInfo, OllamaDiscovery
-from sql_agent.utils.models.config import get_timeout
+from sql_agent.utils.models.config import get_timeout, DEFAULT_REMOTE_MODELS
+from sql_agent.utils.models.remote import create_provider
+from sql_agent.utils.models.secrets import secrets_manager
 
 log = logger.get_logger(__name__)
 
@@ -18,8 +20,10 @@ log = logger.get_logger(__name__)
 class ModelManagerConfig:
     """Configuration for the model manager."""
     ollama_host: Optional[str] = None
-    default_model_id: str = "qwen2.5-coder:1.5b"
+    default_model_id: str = "phi:latest"  # Changed to phi:latest as default
     model_blacklist: List[str] = None
+    use_remote_models: bool = True
+    default_remote_model: str = "haiku-3.5"
     
     def __post_init__(self):
         if self.model_blacklist is None:
@@ -35,7 +39,7 @@ class ModelManagerConfig:
 
 
 class ModelManager:
-    """Manages Ollama model operations including discovery, pulling, and status checks."""
+    """Manages local and remote model operations including discovery, pulling, and status checks."""
     
     def __init__(self, config: Optional[ModelManagerConfig] = None):
         """Initialize the model manager.
@@ -50,6 +54,16 @@ class ModelManager:
         self.ollama_mode = "remote"  # Can be "remote" or "local"
         self.current_model_id = self.config.default_model_id
         self.ollama_available = False
+        
+        # Remote model support
+        self.remote_models = {}
+        self.remote_model_available = False
+        self.current_remote_model = self.config.default_remote_model
+        self.using_remote_model = False
+        
+        # Initialize remote model providers if enabled
+        if self.config.use_remote_models:
+            self._initialize_remote_models()
         
         # Initialize model discovery
         self.model_discovery = OllamaDiscovery(ollama_host=self.ollama_host)
@@ -261,9 +275,9 @@ class ModelManager:
             
         # Models to try in order of preference
         fallback_models = [
+            "phi:latest",          # 1.6 GB - Our new default model
             "qwen2.5-coder:1.5b",  # 986 MB
             "deepseek-r1:1.5b",    # 1.1 GB
-            "phi:latest",          # 1.6 GB
             "gemma2:latest",       # 5.4 GB
             "qwen2.5-coder:0.5b",  # Smallest (531 MB) but has tensor issues
             "llama3.2:1b"          # 1.3 GB - has tensor issues
@@ -285,8 +299,145 @@ class ModelManager:
                 if self.pull_model(model_id):
                     return model_id, True
         
+        # If no model is available, try to use remote model if available
+        if self.config.use_remote_models and hasattr(self, 'remote_model_available') and self.remote_model_available:
+            self.using_remote_model = True
+            return f"remote:{self.current_remote_model}", True
+            
         # If no model is available, return current model anyway
         return self.current_model_id, True
+    
+    def _initialize_remote_models(self) -> None:
+        """Initialize remote model providers."""
+        for model_id, config in DEFAULT_REMOTE_MODELS.items():
+            try:
+                provider = create_provider(config)
+                
+                if provider.is_available():
+                    log.info(f"Remote model '{model_id}' is available")
+                    self.remote_models[model_id] = provider
+                    
+                    # Test connection
+                    result = provider.test_connection()
+                    if result["status"] == "available":
+                        self.remote_model_available = True
+                        log.info(f"Successfully connected to {config.name}")
+                    else:
+                        log.warning(f"Failed to connect to {config.name}: {result.get('error', 'Unknown error')}")
+                else:
+                    log.warning(f"Remote model '{model_id}' is not available (missing API key)")
+            except Exception as e:
+                log.error(f"Error initializing remote model '{model_id}': {e}")
+    
+    def set_api_key(self, provider: str, api_key: str) -> bool:
+        """Set API key for a remote model provider.
+        
+        Args:
+            provider: Provider name or model ID
+            api_key: API key
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Find the matching provider config
+            for model_id, config in DEFAULT_REMOTE_MODELS.items():
+                if model_id == provider or config.name.lower() == provider.lower():
+                    # Save API key to secrets
+                    secrets_manager.set_secret(config.api_key_env, api_key)
+                    
+                    # Re-initialize remote models
+                    self._initialize_remote_models()
+                    
+                    return True
+            
+            log.warning(f"No provider found for '{provider}'")
+            return False
+        except Exception as e:
+            log.error(f"Error setting API key: {e}")
+            return False
+    
+    def use_remote_model(self, model_id: str) -> bool:
+        """Switch to using a remote model.
+        
+        Args:
+            model_id: Remote model ID
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if model_id not in self.remote_models:
+            log.error(f"Remote model '{model_id}' not available")
+            return False
+        
+        try:
+            # Check if the model is available
+            provider = self.remote_models[model_id]
+            result = provider.test_connection()
+            
+            if result["status"] != "available":
+                log.error(f"Remote model '{model_id}' not available: {result.get('error', 'Unknown error')}")
+                return False
+            
+            # Update current model
+            self.using_remote_model = True
+            self.current_remote_model = model_id
+            self.current_model_id = f"remote:{model_id}"
+            
+            log.info(f"Using remote model '{model_id}'")
+            return True
+            
+        except Exception as e:
+            log.error(f"Error switching to remote model '{model_id}': {e}")
+            return False
+    
+    def use_local_model(self) -> bool:
+        """Switch back to using local Ollama model.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.ollama_available:
+            log.error("No local Ollama models available")
+            return False
+        
+        self.using_remote_model = False
+        model_id, is_fallback = self.get_best_model()
+        self.current_model_id = model_id
+        
+        log.info(f"Using local model '{model_id}'")
+        return True
+    
+    def test_remote_model(self, model_id: str) -> Tuple[bool, Optional[str]]:
+        """Test if a remote model works properly.
+        
+        Args:
+            model_id: ID of the model to test
+            
+        Returns:
+            Tuple of (success, error_message)
+        """
+        if model_id not in self.remote_models:
+            return False, f"Remote model '{model_id}' not available"
+        
+        try:
+            provider = self.remote_models[model_id]
+            result = provider.test_connection()
+            
+            if result["status"] == "available":
+                # Try a simple generation
+                test_prompt = "Generate 'Hello World'"
+                response = provider.generate(test_prompt, max_tokens=20)
+                
+                if response:
+                    return True, None
+                else:
+                    return False, "Failed to generate text"
+            else:
+                return False, result.get('error', 'Unknown error')
+                
+        except Exception as e:
+            return False, str(e)
         
     def switch_to_local_mode(self) -> bool:
         """Switch to using local Ollama instance.

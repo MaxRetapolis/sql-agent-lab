@@ -15,9 +15,10 @@ log = logger.init(level="DEBUG", save_log=True)
 # Configuration
 UI_PORT: int = int(os.getenv("UI_PORT", "8046"))
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://192.168.1.37:11434")
-# All tested models have issues - using qwen2.5-coder:1.5b as default 
-# even though it has tensor errors, since agent has fallback mechanisms
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "qwen2.5-coder:1.5b")
+# Using phi:latest as default model
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "phi:latest")
+# Default to using Haiku 3.5 for remote model if API key is available
+DEFAULT_REMOTE_MODEL = os.getenv("DEFAULT_REMOTE_MODEL", "haiku-3.5")
 STATUS_INTERVAL = int(os.getenv("STATUS_INTERVAL", "60"))  # Update status every 60 seconds
 PLACE_HOLDER = "Ask a question about the data..."
 BOTH_ICON = "app/assets/bot.png"
@@ -178,22 +179,41 @@ def respond(question, history):
     if question.strip() == "/status":
         ollama_status = "Connected" if agent.ollama_available else "Not connected"
         
+        # Check for remote model status
+        using_remote = hasattr(agent, 'using_remote_model') and agent.using_remote_model
+        remote_status = []
+        if hasattr(agent, 'remote_models') and agent.remote_models:
+            for model_id, provider in agent.remote_models.items():
+                result = provider.test_connection()
+                status = "✅ Available" if result["status"] == "available" else "❌ Unavailable"
+                remote_status.append(f"  - {model_id}: {status}")
+        
         # Force update status file
         status_reporter.update_now(force=True)
         
-        return f"""System Status:
+        status_text = f"""System Status:
 - Ollama: {ollama_status} (mode: {ollama_mode.upper()})
 - Ollama host: {agent.ollama_host}
-- Current model: {current_model}
+- Current model: {current_model} {"(REMOTE)" if using_remote else "(LOCAL)"}
 - Current database: {current_db}
 - Available databases: {', '.join(agent.databases.keys())}
-- Available models: {', '.join(agent.models.keys()) if agent.models else "None"}
+- Available local models: {', '.join(agent.models.keys()) if agent.models else "None"}
 - Status file: {status_reporter.status_file}
 - State file: {status_reporter.persistence.state_file}
-
-Use /local to switch to local Ollama
-Use /remote to switch to remote Ollama
 """
+
+        # Add remote model section if available
+        if remote_status:
+            status_text += "\nRemote Models:\n" + "\n".join(remote_status) + "\n"
+            status_text += "\nUse /use_remote [model_id] to use a remote model\n"
+            status_text += "Use /use_local to switch back to local model\n"
+        else:
+            status_text += "\nNo remote models configured. Use /set_api_key to add one.\n"
+
+        status_text += "\nUse /local to switch to local Ollama\n"
+        status_text += "Use /remote to switch to remote Ollama\n"
+        
+        return status_text
         
     # Handle Ollama test command
     if question.strip() == "/test_ollama" or question.strip() == "/check_ollama":
@@ -319,6 +339,60 @@ Results will be saved to OLLAMA_SCAN_RESULTS.md
 Use /status to verify the current state.
 """
             
+    # Handle remote model commands
+    if question.strip().startswith("/set_api_key "):
+        # Format should be /set_api_key provider_name api_key
+        parts = question.strip().split(" ", 2)
+        if len(parts) < 3:
+            return "Error: Missing provider name or API key. Usage: /set_api_key [provider] [api_key]"
+        
+        provider = parts[1]
+        api_key = parts[2].strip()
+        
+        success = agent.set_api_key(provider, api_key)
+        if success:
+            return f"✅ API key for {provider} saved successfully. You can now use /use_remote [model_id] to use this model."
+        else:
+            return f"❌ Failed to save API key for {provider}. Check if the provider name is valid."
+    
+    if question.strip().startswith("/use_remote"):
+        parts = question.strip().split(" ", 1)
+        model_id = parts[1].strip() if len(parts) > 1 else DEFAULT_REMOTE_MODEL
+        
+        success = agent.use_remote_model(model_id)
+        if success:
+            current_model = agent.current_model_id
+            status_reporter.update_model_info(agent.models, current_model)
+            return f"✅ Now using remote model: {model_id}"
+        else:
+            return f"❌ Failed to use remote model: {model_id}. Check if the API key is set correctly with /set_api_key."
+    
+    if question.strip() == "/use_local":
+        success = agent.use_local_model()
+        if success:
+            current_model = agent.current_model_id
+            status_reporter.update_model_info(agent.models, current_model)
+            return f"✅ Now using local model: {current_model}"
+        else:
+            return "❌ Failed to switch to local model. Check if Ollama is running with /test_ollama."
+    
+    if question.strip() == "/list_remote_models":
+        if not hasattr(agent, 'remote_models') or not agent.remote_models:
+            return "No remote models available. Set an API key with /set_api_key [provider] [api_key]"
+        
+        models_info = []
+        for model_id, provider in agent.remote_models.items():
+            status = provider.test_connection()
+            availability = "✅ Available" if status["status"] == "available" else "❌ Unavailable"
+            models_info.append(f"- {model_id}: {availability}")
+        
+        return f"""Available Remote Models:
+{chr(10).join(models_info)}
+
+Use /use_remote [model_id] to switch to a remote model.
+To add a new model, use /set_api_key [provider] [api_key]
+"""
+    
     # Handle help command
     if question.strip() == "/help":
         return """
@@ -329,9 +403,15 @@ Database Commands:
 /db [name] - Switch to the specified database
 /schema - Show schema of the current database
 
-Model Commands:
+Local Model Commands:
 /list_models - List all available Ollama models
 /model [name] - Switch to the specified model
+
+Remote Model Commands:
+/list_remote_models - List available remote models
+/use_remote [model_id] - Use a remote model (default: haiku-3.5)
+/use_local - Switch back to local model
+/set_api_key [provider] [api_key] - Set API key for a remote provider
 
 Ollama Commands:
 /local - Switch to local Ollama instance

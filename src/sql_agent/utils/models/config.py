@@ -1,8 +1,9 @@
 """
 Configuration parameters for model management.
 """
-from typing import Dict, Any
+from typing import Dict, Any, List
 import os
+from dataclasses import dataclass
 
 # Default timeout values (in seconds)
 DEFAULT_MODEL_TIMEOUTS = {
@@ -49,3 +50,30 @@ def get_timeout(operation_type: str) -> int:
         Timeout value in seconds
     """
     return MODEL_TIMEOUTS.get(operation_type, DEFAULT_MODEL_TIMEOUTS.get(operation_type, 60))
+
+
+@dataclass
+class RemoteModelConfig:
+    """Configuration for a remote model provider."""
+    name: str
+    api_key_env: str  # Environment variable or secrets key for API key
+    base_url: str
+    model_name: str
+    max_tokens: int = 4096
+    temperature: float = 0.7
+    timeout: int = 60
+
+
+# Default remote model configurations
+DEFAULT_REMOTE_MODELS = {
+    "haiku-3.5": RemoteModelConfig(
+        name="Anthropic Haiku",
+        api_key_env="ANTHROPIC_API_KEY",
+        base_url="https://api.anthropic.com/v1/messages",
+        model_name="claude-3-haiku-20240307",
+        max_tokens=4096,
+        temperature=0.7,
+        timeout=30
+    ),
+    # Add other remote models as needed
+}

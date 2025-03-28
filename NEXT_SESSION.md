@@ -1,78 +1,63 @@
 # Tasks for Next Session
 
+## Implemented Features to Review
+1. **Default Local Model and Remote Integration**
+   - ✅ Changed phi:latest as the default local model
+   - ✅ Implemented remote model support with Haiku 3.5
+   - ✅ Added secure API key management
+   - ✅ Created UI commands for managing remote models
+   - Next steps:
+     - Complete the remote model inference implementation (request method)
+     - Add support for other remote model providers
+     - Create a comprehensive testing suite for remote models
+
+2. **UI Improvements for Remote Models**
+   - ✅ Added commands for setting API keys
+   - ✅ Added commands for switching between local and remote models
+   - Next steps:
+     - Add visual indicators for remote model usage
+     - Add a settings panel for managing API keys
+     - Implement progress indicators for long-running queries
+
 ## Critical Issues to Address
 
 1. **Model Compatibility Issues**
-   - ✅ Doubled all timeout values throughout the codebase
-   - ✅ Tested phi:latest and deepseek-r1:1.5b models - confirmed working but slow
-   - ✅ Created configurable timeout system with env var overrides
-   - Other models (qwen2.5-coder:0.5b, qwen2.5-coder:1.5b, llama3.2:1b) still have tensor initialization errors
-   - gemma2:latest still has architecture compatibility issues
-   - Recommendations:
-     - Set phi:latest as the default model (most reliable in testing)
-     - Consider switching to remote mode with more powerful hardware
-     - For local use, recommend OLLAMA_TIMEOUT_INFERENCE_FIRST_TOKEN=180 (3 min)
-     - Document the slow performance for users (2-3 minute response times)
-     - Focus optimization efforts on model caching and query pre-processing
+   - Local models still have tensor initialization errors and slow performance
+   - Need better error handling for tensor initialization failures
+   - Implement automatic fallback to remote models on local failures
+   - Consider pre-downloading phi:latest during installation
 
-2. **Package Dependencies**
-   - Establish a proper virtual environment for the application
-   - Install required packages:
-     ```
-     python3 -m pip install --user python-dotenv gradio sqlalchemy agno
-     ```
-   - Consider using a requirements.txt file for better dependency management
+2. **Performance Optimization**
+   - Measure query response times for remote vs local models
+   - Implement caching for repeated queries
+   - Optimize database schema parsing for large databases
 
-3. **Application Testing**
-   - ✅ Verified local models work but with high latency (CPU bottleneck)
-   - Test full application with remote Ollama
-   - Verify mode switching functionality in the UI
-   - Test session recovery mechanisms
-   - Create benchmarks to measure query response times with different models
+3. **Testing and Documentation**
+   - Create test suite for remote model API integration
+   - Document all new remote model features
+   - Update user guide with API key setup instructions
 
 ## Enhancement Ideas
 
-1. **Improved Error Handling**
-   - Add more descriptive error messages for Ollama connectivity issues
-   - Create diagnostic tool to verify model compatibility
-   - Add retry mechanism for transient errors
+1. **Advanced Remote Model Features**
+   - Add temperature and other model parameter controls
+   - Implement streaming responses for better UX
+   - Add system message customization
+   - Implement model response caching
 
-2. **Performance Optimization**
-   - Profile SQL query execution times
-   - Implement caching for frequently accessed database schemas
-   - Add database connection pooling
-
-3. **UI Improvements**
-   - Add real-time model status indicator
-   - Provide visual feedback during model switching
-   - Display database schema visualization
+2. **Security Enhancements**
+   - Add encryption for stored API keys
+   - Implement token usage tracking and limits
+   - Add user authentication for multi-user setups
 
 ## Documentation Needs
 
-1. **User Guide**
-   - Document the newly implemented commands (/local, /remote, etc.)
-   - Provide examples of useful queries for each database
-   - Add troubleshooting section for common issues
+1. **Remote Model Guide**
+   - Document API key acquisition process
+   - Provide examples of model performance differences
+   - Add troubleshooting section for API connectivity issues
 
 2. **Developer Documentation**
-   - Document the model fallback mechanism
-   - Explain the database discovery architecture
-   - Provide examples for extending the agent with new capabilities
-
-## Testing Strategy
-
-1. Create test scripts for each major component:
-   - ✅ Ollama connectivity tests with extended timeouts
-   - ✅ Basic model inference tests with CLI and Python
-   - SQL query generation tests with working models
-   - Database discovery tests
-   - UI component tests
-   - Performance benchmarks for different hardware configurations
-
-2. Develop integration tests for the complete workflow
-
-## DevOps Considerations
-
-1. Add health check endpoint for monitoring
-2. Consider containerization for easier deployment
-3. Implement automated testing in CI/CD pipeline
+   - Document the remote model provider architecture
+   - Explain how to add new model providers
+   - Provide examples for customizing model parameters

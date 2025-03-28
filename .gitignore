@@ -105,6 +105,14 @@ ENV/
 env.bak/
 venv.bak/
 
+# API keys and secrets
+.sql_agent_secrets
+*_api_key*
+*_secret*
+*.key
+secrets.py
+!src/sql_agent/utils/models/secrets.py
+
 # Spyder project settings
 .spyderproject
 .spyproject

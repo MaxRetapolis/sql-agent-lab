@@ -7,6 +7,7 @@ An interactive tool for exploring SQL databases using natural language queries p
 - **Dynamic Database Discovery**: Automatically finds and connects to all SQLite databases in the data directory
 - **Dynamic Model Selection**: Automatically detects all available Ollama models and allows switching between them
 - **Flexible Ollama Integration**: Supports both local and remote Ollama instances with easy switching
+- **Remote Model Support**: Use Anthropic's Haiku or other remote models through API integration
 - **Natural Language Queries**: Ask questions about your data in plain English
 - **Interactive UI**: Switch between databases and models through a simple web interface
 - **Command System**: Use commands like `/list_db`, `/db [name]`, `/list_models`, `/model [name]`, and `/schema` to interact with the system
@@ -69,6 +70,8 @@ Go to http://127.0.0.1:8046/
 
 - `OLLAMA_HOST` - Ollama server URL (default: http://192.168.1.37:11434)
 - `DEFAULT_MODEL` - Default Ollama model to use (default: phi:latest)
+- `DEFAULT_REMOTE_MODEL` - Default remote model to use (default: haiku-3.5)
+- `ANTHROPIC_API_KEY` - API key for Anthropic models (can also be set in ~/.sql_agent_secrets)
 - `UI_PORT` - Port for the web interface (default: 8046)
 - `STATUS_INTERVAL` - Seconds between state/status file updates (default: 60)
 
@@ -146,6 +149,48 @@ To test connectivity:
 - Use the `/test_ollama` command
 - Run `python scripts/test_ollama.py` from the command line
 
+### Remote Model Integration
+
+In addition to Ollama models, the application supports remote AI models through API integration:
+
+#### Available Remote Models
+- **Anthropic Haiku (Claude 3 Haiku)** - Fast, economical model for natural language tasks
+
+#### Setting Up Remote Models
+1. Create a secrets file:
+   ```bash
+   cp sample_secrets ~/.sql_agent_secrets
+   ```
+
+2. Edit the secrets file and add your API keys:
+   ```bash
+   # Open the file
+   nano ~/.sql_agent_secrets
+   
+   # Add your API key
+   ANTHROPIC_API_KEY=your_actual_api_key_here
+   ```
+
+3. Or set the API key through the UI:
+   ```
+   /set_api_key haiku-3.5 your_api_key_here
+   ```
+
+4. Switch to using the remote model:
+   ```
+   /use_remote haiku-3.5
+   ```
+
+5. To check available remote models:
+   ```
+   /list_remote_models
+   ```
+
+6. To switch back to local models:
+   ```
+   /use_local
+   ```
+
 ### Session Persistence
 
 The application automatically maintains two files to ensure session recovery in case of disconnections:
@@ -169,7 +214,11 @@ Database Commands:
 
 Model Commands:
 - `/list_models` - List all available Ollama models
-- `/model [name]` - Switch to the specified model
+- `/model [name]` - Switch to the specified local model
+- `/list_remote_models` - List available remote models
+- `/use_remote [model_id]` - Use a remote model (default: haiku-3.5)
+- `/use_local` - Switch back to local model
+- `/set_api_key [provider] [api_key]` - Set API key for a remote provider
 
 System Commands:
 - `/status` - Show system status

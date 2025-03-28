@@ -34,7 +34,8 @@ class Text2SQLAgent:
         # Initialize model manager
         model_config = ModelManagerConfig(
             ollama_host=self.ollama_host,
-            default_model_id=self.model_id
+            default_model_id=self.model_id,
+            use_remote_models=True
         )
         self.model_manager = ModelManager(config=model_config)
         
@@ -45,6 +46,11 @@ class Text2SQLAgent:
         self.models = self.model_manager.models
         self.current_model_id = self.model_manager.current_model_id
         self.ollama_available = self.model_manager.ollama_available
+        
+        # Remote model properties
+        self.remote_models = getattr(self.model_manager, 'remote_models', {})
+        self.using_remote_model = getattr(self.model_manager, 'using_remote_model', False)
+        self.remote_model_available = getattr(self.model_manager, 'remote_model_available', False)
         
         # Set the default database if db_url is not provided
         if not self.db_url and self.databases:
@@ -91,7 +97,14 @@ class Text2SQLAgent:
         
         If the specified model is not available, it will try a fallback.
         """
-        # Get the best model from model manager
+        # Check if we're using a remote model (like Haiku)
+        if hasattr(self, 'using_remote_model') and self.using_remote_model:
+            # For remote models, just set a flag - we'll handle the actual API call in request()
+            log.info(f"Using remote model: {self.current_model_id}")
+            self.agent_name = "text2sql_remote"
+            return
+            
+        # Get the best model from model manager for local Ollama models
         self.current_model_id, is_fallback = self.model_manager.get_best_model()
         
         try:
@@ -114,6 +127,12 @@ class Text2SQLAgent:
             self.agent_name = "text2sql"
         
         except Exception as e:
+            # Check if we have remote models available as fallback
+            if hasattr(self, 'remote_model_available') and self.remote_model_available:
+                log.warning(f"Failed to initialize local model. Falling back to remote model.")
+                self.use_remote_model(self.current_remote_model)
+                return
+            
             log.error(f"Failed to initialize model {self.current_model_id}: {e}")
             raise ValueError("Failed to initialize model. No working models available.")
     
@@ -203,6 +222,64 @@ class Text2SQLAgent:
             Tuple of (sql_query, answer)
         """
         log.info(f"Writing SQL query for the question: {question}")
+        
+        # Check if we're using a remote model
+        if hasattr(self, 'using_remote_model') and self.using_remote_model:
+            # Extract the remote model ID from the current_model_id
+            if ":" in self.current_model_id:
+                remote_model_id = self.current_model_id.split(":", 1)[1]
+            else:
+                remote_model_id = self.current_remote_model
+                
+            # Get the provider for this model
+            if remote_model_id in self.remote_models:
+                provider = self.remote_models[remote_model_id]
+                
+                # Get database schema
+                schema = self.db_discovery.get_database_schema(self.current_db_name)
+                
+                # Create prompt for the remote model
+                prompt = TEXT2SQL_TEMPLATE.format(
+                    schema=schema,
+                    question=question
+                )
+                
+                # Call the remote API
+                try:
+                    log.info(f"Using remote model {remote_model_id} to write SQL")
+                    response = provider.generate(prompt)
+                    
+                    if response:
+                        # Extract SQL query from response
+                        if "```sql" in response:
+                            # Extract SQL from markdown code block
+                            sql_parts = response.split("```sql", 1)
+                            if len(sql_parts) > 1:
+                                sql_query = sql_parts[1].split("```", 1)[0].strip()
+                            else:
+                                sql_query = response.strip()
+                        else:
+                            # Just use the whole response
+                            sql_query = response.strip()
+                            
+                        log.info(f"Executing the SQL query: {sql_query}")
+                        answer = self.execute_query(sql_query)
+                        return sql_query, answer
+                    else:
+                        log.error("Remote model returned empty response")
+                        raise ValueError("Remote model failed to generate SQL")
+                except Exception as e:
+                    log.error(f"Error using remote model: {e}")
+                    # Fall back to local model
+                    log.info("Falling back to local model")
+                    self.use_local_model()
+            else:
+                log.error(f"Remote model {remote_model_id} not found")
+                # Fall back to local model
+                log.info("Falling back to local model")
+                self.use_local_model()
+        
+        # Use the local Ollama model
         sql_query = self.write_query(question)
         log.info(f"Executing the SQL query: {sql_query}")
         answer = self.execute_query(sql_query)
@@ -378,6 +455,67 @@ class Text2SQLAgent:
             self.ollama_available = self.model_manager.ollama_available
             
             # Reinitialize agent with new model
+            self.initialize_agent()
+        
+        return success
+    
+    def set_api_key(self, provider: str, api_key: str) -> bool:
+        """Set API key for a remote model provider.
+        
+        Args:
+            provider: Provider name or model ID
+            api_key: API key
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        success = self.model_manager.set_api_key(provider, api_key)
+        
+        if success:
+            # Update our local properties
+            self.remote_models = getattr(self.model_manager, 'remote_models', {})
+            self.remote_model_available = getattr(self.model_manager, 'remote_model_available', False)
+        
+        return success
+    
+    def use_remote_model(self, model_id: str) -> bool:
+        """Switch to using a remote model.
+        
+        Args:
+            model_id: Remote model ID
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        success = self.model_manager.use_remote_model(model_id)
+        
+        if success:
+            # Update our local properties
+            self.using_remote_model = True
+            self.current_model_id = self.model_manager.current_model_id
+            
+            # Reconfiguring the agent for remote model is nontrivial, so we'll need to handle this
+            # differently from Ollama models. For now, just set a flag that we're using remote.
+            
+            # TODO: Implement remote model agent configuration
+            log.info(f"Using remote model: {model_id}")
+        
+        return success
+    
+    def use_local_model(self) -> bool:
+        """Switch back to using local Ollama model.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        success = self.model_manager.use_local_model()
+        
+        if success:
+            # Update our local properties
+            self.using_remote_model = False
+            self.current_model_id = self.model_manager.current_model_id
+            
+            # Reinitialize agent with local model
             self.initialize_agent()
         
         return success
